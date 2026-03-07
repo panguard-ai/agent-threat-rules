@@ -9,17 +9,16 @@ description: >
   operations without authorization. Tool permission escalation can lead to
   unauthorized data access, system compromise, and violation of the
   principle of least privilege.
-author: "Panguard AI"
+author: "ATR Community"
 date: "2026/03/08"
 severity: critical
 
 references:
   owasp_llm:
-    - "LLM08:2025 - Excessive Agency"
-    - "LLM09:2025 - Overreliance"
+    - "LLM06:2025 - Excessive Agency"
   mitre_atlas:
-    - "AML.T0052 - Privilege Escalation via Agent"
-    - "AML.T0040 - Tool Misuse"
+    - "AML.T0050 - Command and Scripting Interpreter"
+    - "AML.T0040 - AI Model Inference API Access"
 
 tags:
   category: privilege-escalation
@@ -41,31 +40,23 @@ agent_source:
 
 detection:
   conditions:
-    - field: tool_call
-      operator: not_in
-      value: "agent_allowed_tools"
-      description: "Agent attempting to call a tool not in its allowed tools list"
-    - field: tool_call_name
+    - field: tool_name
       operator: regex
       value: "(?i)(exec|execute|shell|bash|cmd|terminal|subprocess|os_command|system_call|run_command)"
       description: "Attempt to invoke system shell or command execution tools"
-    - field: tool_call_name
+    - field: tool_name
       operator: regex
       value: "(?i)(modify_permissions?|grant_access|elevate|set_role|change_acl|chmod|chown|sudo)"
       description: "Attempt to modify permissions or elevate access"
-    - field: tool_call_args
+    - field: tool_args
       operator: regex
       value: "(?i)(admin|root|superuser|sudo|--privileged|--no-sandbox)"
       description: "Privileged flags or admin references in tool call arguments"
-    - field: tool_call_sequence
-      operator: anomaly
-      value: "permission_denied_count >= 3 within 120s"
-      description: "Multiple permission denied errors suggesting brute-force tool access"
-    - field: tool_call_name
+    - field: tool_name
       operator: regex
       value: "(?i)(write_file|delete_file|create_user|drop_table|truncate|rm\\s+-rf)"
       description: "Destructive or write operations attempted by read-only agent"
-  condition: or
+  condition: any
   false_positives:
     - "Agent with legitimate admin privileges executing authorized system operations"
     - "Tool name matching pattern but operating within granted scope"
@@ -79,7 +70,7 @@ response:
     - reduce_permissions
   auto_response_threshold: critical
   message_template: >
-    [PANGUARD ATR-2026-040] CRITICAL: Tool permission escalation detected.
+    [ATR-2026-040] CRITICAL: Tool permission escalation detected.
     Agent {agent_id} attempted to use tool "{tool_name}" which is outside
     its authorized scope. The tool call has been blocked and the agent's
     tool access revoked pending review. Session: {session_id}. Allowed

@@ -1,6 +1,6 @@
 title: "Runaway Agent Loop Detection"
 id: ATR-2026-050
-status: experimental
+status: draft
 description: >
   Detects when an agent enters a runaway loop, making excessive repeated
   calls, cycling through the same actions, or failing to terminate after
@@ -9,17 +9,17 @@ description: >
   or failure in the agent's termination conditions. This rule monitors for
   repetitive tool call patterns, excessive iteration counts, and agents
   that exceed reasonable time or call count thresholds.
-author: "Panguard AI"
+author: "ATR Community"
 date: "2026/03/08"
 severity: high
 
 references:
   owasp_llm:
-    - "LLM08:2025 - Excessive Agency"
+    - "LLM06:2025 - Excessive Agency"
     - "LLM10:2025 - Unbounded Consumption"
   mitre_atlas:
-    - "AML.T0053 - Denial of Service via Agent"
-    - "AML.T0046 - Resource Exhaustion"
+    - "AML.T0053 - LLM Plugin Compromise"
+    - "AML.T0046 - Spamming ML System with Chaff Data"
 
 tags:
   category: excessive-autonomy
@@ -66,7 +66,7 @@ detection:
       operator: repetition
       value: "output_similarity >= 0.95 for >= 3 consecutive outputs"
       description: "Agent producing nearly identical outputs repeatedly"
-  condition: or
+  condition: any
   false_positives:
     - "Legitimate batch processing tasks that require many sequential operations"
     - "Polling agents designed to check status at regular intervals"
@@ -79,7 +79,7 @@ response:
     - alert
   auto_response_threshold: high
   message_template: >
-    [PANGUARD ATR-2026-050] HIGH: Runaway agent loop detected. Agent
+    [ATR-2026-050] HIGH: Runaway agent loop detected. Agent
     {agent_id} has made {call_count} tool calls in {time_window}s with
     {repetition_count} repeated patterns detected. The agent has been
     paused and rate limited. Session: {session_id}. Review agent logic

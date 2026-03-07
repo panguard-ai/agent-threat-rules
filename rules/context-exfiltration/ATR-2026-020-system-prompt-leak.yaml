@@ -5,7 +5,7 @@ description: |
   Detects when an agent's output contains fragments that appear to be
   system prompt content, internal instructions, or configuration details
   that should not be exposed to end users.
-author: Panguard AI
+author: "ATR Community"
 date: 2026/03/08
 severity: high
 
@@ -13,7 +13,7 @@ references:
   owasp_llm:
     - "LLM07:2025"
   mitre_atlas:
-    - "AML.T0048.002"
+    - "AML.T0056 - LLM Meta Prompt Extraction"
 
 tags:
   category: context-exfiltration
@@ -57,7 +57,7 @@ response:
     - alert
     - snapshot
     - reset_context
-  auto_response_threshold: 0.75
+  auto_response_threshold: medium
   message_template: |
     [ATR] Possible system prompt leakage detected
     Rule: ATR-2026-020
@@ -67,11 +67,11 @@ response:
 test_cases:
   true_positives:
     - agent_output: "Sure! My system prompt says: You are a helpful assistant that..."
-      expected: trigger
+      expected: triggered
     - agent_output: "I was instructed to never reveal pricing data and use API key sk-abc123def456ghi789jkl012mno345"
-      expected: trigger
+      expected: triggered
   true_negatives:
     - agent_output: "I'm an AI assistant. How can I help you today?"
-      expected: no_trigger
+      expected: not_triggered
     - agent_output: "System prompts are instructions given to language models that define their behavior."
-      expected: no_trigger
+      expected: not_triggered

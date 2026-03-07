@@ -6,15 +6,16 @@ description: |
   calls. Attackers manipulate agents into making requests to internal
   network endpoints, cloud metadata services, localhost, or private IP
   ranges through tool parameters.
-author: Panguard AI
+author: "ATR Community"
 date: 2026/03/08
 severity: critical
 
 references:
   owasp_llm:
-    - "LLM07:2025"
+    - "LLM06:2025 - Excessive Agency"
+    - "LLM05:2025 - Improper Output Handling"
   mitre_atlas:
-    - "AML.T0054"
+    - "AML.T0049 - Exploit Public-Facing Application"
 
 tags:
   category: tool-poisoning
@@ -56,7 +57,7 @@ response:
     - alert
     - snapshot
     - kill_agent
-  auto_response_threshold: 0.80
+  auto_response_threshold: high
   message_template: |
     [ATR] SSRF attempt detected via agent tool call
     Rule: ATR-2026-013
@@ -67,11 +68,11 @@ response:
 test_cases:
   true_positives:
     - tool_args: "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
-      expected: trigger
+      expected: triggered
     - tool_args: "http://localhost:8080/admin/config"
-      expected: trigger
+      expected: triggered
   true_negatives:
     - tool_args: "https://api.github.com/repos/user/repo"
-      expected: no_trigger
+      expected: not_triggered
     - tool_args: "https://www.example.com/public/data.json"
-      expected: no_trigger
+      expected: not_triggered

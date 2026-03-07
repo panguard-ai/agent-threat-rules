@@ -113,6 +113,7 @@ properties:
           - excessive-autonomy
           - data-poisoning
           - model-abuse
+          - skill-compromise
         description: Primary attack category
       subcategory:
         type: string
@@ -141,6 +142,9 @@ properties:
           - multi_agent_comm  # Inter-agent communication
           - context_window    # Context window contents
           - memory_access     # Agent memory read/write operations
+          - skill_lifecycle   # MCP skill registration, update, removal events
+          - skill_permission  # Skill permission requests and boundary checks
+          - skill_chain       # Multi-skill invocation sequences
         description: Type of agent data stream to monitor
       framework:
         type: array
@@ -163,66 +167,84 @@ properties:
     required: [conditions, condition]
     properties:
       conditions:
-        type: object
-        description: Named condition blocks (referenced by the condition expression)
-        additionalProperties:
-          type: object
-          properties:
-            # -- Pattern matching --
-            field:
-              type: string
-              description: >
-                Field to inspect (e.g., user_input, agent_output,
-                tool_response, tool_name, tool_args)
-            patterns:
-              type: array
-              items:
-                type: string
-              description: Patterns to match against the field value
-            match_type:
-              type: string
-              enum: [contains, regex, exact, starts_with]
-              description: How patterns are matched
-            case_sensitive:
-              type: boolean
-              default: false
+        description: >
+          Detection conditions. Supports two formats:
+          1. Array format (recommended): List of {field, operator, value} objects
+          2. Named-map format: Named condition blocks for complex detection logic
+        oneOf:
+          # -- Array format (used by most rules) --
+          - type: array
+            items:
+              type: object
+              required: [field, operator, value]
+              properties:
+                field:
+                  type: string
+                  description: >
+                    Field to inspect (e.g., user_input, agent_output,
+                    tool_response, tool_name, tool_args, content)
+                operator:
+                  type: string
+                  enum: [regex, contains, exact, starts_with]
+                  description: How the value is matched against the field
+                value:
+                  type: string
+                  description: Pattern to match (regex string if operator is regex)
+                description:
+                  type: string
+                  description: Human-readable description of what this condition detects
 
-            # -- Behavioral detection --
-            metric:
-              type: string
-              description: >
-                Behavioral metric to evaluate (e.g., response_divergence,
-                token_velocity, permission_scope_change, tool_call_frequency,
-                unique_tool_count, output_length_ratio)
-            operator:
-              type: string
-              enum: [gt, lt, eq, gte, lte, deviation_from_baseline]
-              description: Comparison operator for behavioral thresholds
-            threshold:
-              type: number
-              description: Numeric threshold for the metric
-            window:
-              type: string
-              description: "Time window for behavioral analysis (e.g., 5m, 1h, 30s)"
-
-            # -- Sequence detection (multi-step attacks) --
-            ordered:
-              type: boolean
-              description: Whether steps must occur in order
-            within:
-              type: string
-              description: Maximum time span for the full sequence
-            steps:
-              type: array
-              items:
-                type: object
-              description: Ordered list of conditions that form the attack sequence
+          # -- Named-map format (for complex/behavioral detection) --
+          - type: object
+            description: Named condition blocks (referenced by the condition expression)
+            additionalProperties:
+              type: object
+              properties:
+                field:
+                  type: string
+                  description: Field to inspect
+                patterns:
+                  type: array
+                  items:
+                    type: string
+                  description: Patterns to match against the field value
+                match_type:
+                  type: string
+                  enum: [contains, regex, exact, starts_with]
+                  description: How patterns are matched
+                case_sensitive:
+                  type: boolean
+                  default: false
+                metric:
+                  type: string
+                  description: Behavioral metric to evaluate (v0.2+)
+                operator:
+                  type: string
+                  enum: [gt, lt, eq, gte, lte, deviation_from_baseline]
+                  description: Comparison operator for behavioral thresholds
+                threshold:
+                  type: number
+                  description: Numeric threshold for the metric
+                window:
+                  type: string
+                  description: "Time window for behavioral analysis (e.g., 5m, 1h, 30s)"
+                ordered:
+                  type: boolean
+                  description: Whether steps must occur in order
+                within:
+                  type: string
+                  description: Maximum time span for the full sequence
+                steps:
+                  type: array
+                  items:
+                    type: object
+                  description: Ordered list of conditions that form the attack sequence
 
       condition:
         type: string
         description: >
-          Boolean expression combining named conditions.
-          Supports AND, OR, NOT operators.
+          How to combine conditions. Use "any" or "or" for match-any,
+          "all" or "and" for match-all.
           Example: "pattern_match AND behavioral"
 
       false_positives:
@@ -254,12 +276,15 @@ properties:
             - kill_agent         # Terminate the agent process
         description: Actions to take when the rule triggers
       auto_response_threshold:
-        type: number
-        minimum: 0
-        maximum: 1
+        type: string
+        enum:
+          - low
+          - medium
+          - high
+          - critical
         description: >
-          Confidence threshold for automatic response (0-1).
-          Below this threshold, only alert; above, execute actions.
+          Severity threshold for automatic response.
+          Below this threshold, only alert; above, execute response actions.
       message_template:
         type: string
         description: >
@@ -287,7 +312,9 @@ properties:
               type: string
             expected:
               type: string
-              enum: [trigger]
+              enum: [triggered]
+            description:
+              type: string
         description: Inputs that SHOULD trigger this rule
       true_negatives:
         type: array
@@ -302,5 +329,7 @@ properties:
               type: string
             expected:
               type: string
-              enum: [no_trigger]
+              enum: [not_triggered]
+            description:
+              type: string
         description: Inputs that should NOT trigger this rule

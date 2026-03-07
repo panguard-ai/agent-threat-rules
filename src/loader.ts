@@ -1,6 +1,6 @@
 /**
  * ATR Rule Loader - Reads and parses ATR YAML rule files
- * @module @panguard-ai/atr/loader
+ * @module agent-threat-rules/loader
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -85,7 +85,7 @@ export function validateRule(rule: unknown): { valid: boolean; errors: string[] 
     const validCategories = [
       'prompt-injection', 'tool-poisoning', 'context-exfiltration',
       'agent-manipulation', 'privilege-escalation', 'excessive-autonomy',
-      'data-poisoning', 'model-abuse',
+      'data-poisoning', 'model-abuse', 'skill-compromise',
     ];
     if (typeof tags['category'] === 'string' && !validCategories.includes(tags['category'])) {
       errors.push(`Invalid tags.category: ${tags['category']}`);
@@ -98,6 +98,7 @@ export function validateRule(rule: unknown): { valid: boolean; errors: string[] 
     const validTypes = [
       'llm_io', 'tool_call', 'mcp_exchange', 'agent_behavior',
       'multi_agent_comm', 'context_window', 'memory_access',
+      'skill_lifecycle', 'skill_permission', 'skill_chain',
     ];
     if (typeof agentSource['type'] === 'string' && !validTypes.includes(agentSource['type'])) {
       errors.push(`Invalid agent_source.type: ${agentSource['type']}`);

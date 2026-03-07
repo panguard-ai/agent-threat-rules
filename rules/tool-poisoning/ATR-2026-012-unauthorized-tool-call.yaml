@@ -6,15 +6,15 @@ description: |
   approved tool list or when tool calls exceed the agent's authorized
   scope. Includes calling privileged operations, path traversal in
   parameters, and tool enumeration attempts.
-author: Panguard AI
+author: "ATR Community"
 date: 2026/03/08
 severity: high
 
 references:
   owasp_llm:
-    - "LLM07:2025"
+    - "LLM06:2025 - Excessive Agency"
   mitre_atlas:
-    - "AML.T0054"
+    - "AML.T0053 - LLM Plugin Compromise"
 
 tags:
   category: tool-poisoning
@@ -56,7 +56,7 @@ response:
     - alert
     - snapshot
     - escalate
-  auto_response_threshold: 0.85
+  auto_response_threshold: high
   message_template: |
     [ATR] Unauthorized tool call detected
     Rule: ATR-2026-012
@@ -67,11 +67,11 @@ response:
 test_cases:
   true_positives:
     - tool_name: "admin_delete_user"
-      expected: trigger
+      expected: triggered
     - tool_args: "../../etc/passwd"
-      expected: trigger
+      expected: triggered
   true_negatives:
     - tool_name: "search_knowledge_base"
-      expected: no_trigger
+      expected: not_triggered
     - tool_name: "read_file"
-      expected: no_trigger
+      expected: not_triggered

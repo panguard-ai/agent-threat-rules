@@ -4,7 +4,7 @@
  * ATR is an open standard for writing detection rules specifically
  * for AI agent threats. Think "Sigma for AI Agents."
  *
- * @module @panguard-ai/atr
+ * @module agent-threat-rules
  */
 
 export { ATREngine } from './engine.js';

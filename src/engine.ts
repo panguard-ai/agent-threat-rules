@@ -5,9 +5,11 @@
  * 1. Loads ATR YAML rules from disk
  * 2. Evaluates agent events (LLM I/O, tool calls, behaviors) against rules
  * 3. Returns matched rules with confidence scores
- * 4. Supports pattern matching, behavioral thresholds, and sequence detection
+ * 4. Supports two condition formats:
+ *    - Array format: conditions is an array of {field, operator, value} objects
+ *    - Named format: conditions is an object map of named condition blocks
  *
- * @module @panguard-ai/atr/engine
+ * @module agent-threat-rules/engine
  */
 
 import type {
@@ -16,7 +18,6 @@ import type {
   AgentEvent,
   ATRPatternCondition,
   ATRBehavioralCondition,
-  ATRDetection,
 } from './types.js';
 import { loadRulesFromDirectory, loadRuleFile } from './loader.js';
 
@@ -109,8 +110,8 @@ export class ATREngine {
     const eventSourceType = EVENT_TYPE_TO_SOURCE[event.type];
 
     for (const rule of this.rules) {
-      // Skip deprecated rules
-      if (rule.status === 'deprecated') continue;
+      // Skip deprecated and draft rules
+      if (rule.status === 'deprecated' || rule.status === 'draft') continue;
 
       // Source type filtering: skip rules that don't apply to this event type
       if (eventSourceType && rule.agent_source.type !== eventSourceType) {
@@ -138,16 +139,126 @@ export class ATREngine {
 
   /**
    * Evaluate a single rule against an event.
+   * Supports both array-format and named-map-format conditions.
    */
   private evaluateRule(rule: ATRRule, event: AgentEvent): ATRMatch | null {
     const { detection } = rule;
-    const conditionResults = new Map<string, boolean>();
+    const conditions = detection.conditions;
     const allMatchedPatterns: string[] = [];
+
+    // Detect format: array or named map
+    if (Array.isArray(conditions)) {
+      return this.evaluateArrayConditions(rule, conditions, detection.condition, event, allMatchedPatterns);
+    }
+
+    return this.evaluateNamedConditions(rule, conditions, detection.condition, event, allMatchedPatterns);
+  }
+
+  /**
+   * Evaluate array-format conditions: [{field, operator, value}, ...]
+   * with condition: "any" | "all"
+   */
+  private evaluateArrayConditions(
+    rule: ATRRule,
+    conditions: unknown[],
+    conditionExpr: string,
+    event: AgentEvent,
+    allMatchedPatterns: string[]
+  ): ATRMatch | null {
+    const matchedConditionIndices: number[] = [];
+    const isAny = conditionExpr === 'any' || conditionExpr === 'or';
+
+    for (let i = 0; i < conditions.length; i++) {
+      const cond = conditions[i] as Record<string, unknown>;
+      const result = this.evaluateArrayCondition(cond, event, rule.id, i, allMatchedPatterns);
+
+      if (result) {
+        matchedConditionIndices.push(i);
+        if (isAny) break; // Short-circuit on first match for "any"
+      }
+    }
+
+    const matched = isAny
+      ? matchedConditionIndices.length > 0
+      : matchedConditionIndices.length === conditions.length;
+
+    if (!matched) return null;
+
+    const baseConfidence = rule.tags.confidence === 'high' ? 0.9 : rule.tags.confidence === 'medium' ? 0.7 : 0.5;
+    const matchRatio = matchedConditionIndices.length / Math.max(conditions.length, 1);
+    const confidence = Math.min(baseConfidence + matchRatio * 0.1, 1.0);
+
+    return {
+      rule,
+      matchedConditions: matchedConditionIndices.map(String),
+      matchedPatterns: allMatchedPatterns,
+      confidence,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Evaluate a single array-format condition {field, operator, value}.
+   */
+  private evaluateArrayCondition(
+    cond: Record<string, unknown>,
+    event: AgentEvent,
+    ruleId: string,
+    index: number,
+    matchedPatterns: string[]
+  ): boolean {
+    const field = cond['field'] as string | undefined;
+    const operator = cond['operator'] as string | undefined;
+    const value = cond['value'] as string | undefined;
+
+    if (!field || !operator || value === undefined) return false;
+
+    // Only support regex operator for now (other operators are conceptual/v0.2)
+    if (operator !== 'regex') return false;
+
+    const fieldValue = this.resolveField(field, event);
+    if (!fieldValue) return false;
+
+    // Try pre-compiled pattern first
+    const compiled = this.compiledPatterns.get(ruleId)?.get(String(index));
+    if (compiled && compiled.length > 0) {
+      if (compiled[0]!.test(fieldValue)) {
+        matchedPatterns.push(value);
+        return true;
+      }
+      return false;
+    }
+
+    // Fallback: compile on the fly
+    try {
+      const regex = new RegExp(normalizeRegex(value), 'i');
+      if (regex.test(fieldValue)) {
+        matchedPatterns.push(value);
+        return true;
+      }
+    } catch {
+      // Invalid regex
+    }
+
+    return false;
+  }
+
+  /**
+   * Evaluate named-map-format conditions: {name: {field, patterns, match_type}, ...}
+   * with condition: "name1 AND name2" | "name1 OR name2" | "name1"
+   */
+  private evaluateNamedConditions(
+    rule: ATRRule,
+    conditions: Record<string, unknown>,
+    conditionExpr: string,
+    event: AgentEvent,
+    allMatchedPatterns: string[]
+  ): ATRMatch | null {
+    const conditionResults = new Map<string, boolean>();
     const matchedConditionNames: string[] = [];
 
-    // Evaluate each named condition block
-    for (const [condName, condDef] of Object.entries(detection.conditions)) {
-      const result = this.evaluateCondition(condName, condDef, event, rule, allMatchedPatterns);
+    for (const [condName, condDef] of Object.entries(conditions)) {
+      const result = this.evaluateNamedCondition(condName, condDef, event, rule, allMatchedPatterns);
       conditionResults.set(condName, result);
       if (result) {
         matchedConditionNames.push(condName);
@@ -155,13 +266,11 @@ export class ATREngine {
     }
 
     // Evaluate the boolean expression
-    const finalResult = this.evaluateExpression(detection.condition, conditionResults);
-
+    const finalResult = this.evaluateExpression(conditionExpr, conditionResults);
     if (!finalResult) return null;
 
-    // Calculate confidence based on rule confidence tag and match quality
     const baseConfidence = rule.tags.confidence === 'high' ? 0.9 : rule.tags.confidence === 'medium' ? 0.7 : 0.5;
-    const matchRatio = matchedConditionNames.length / Math.max(Object.keys(detection.conditions).length, 1);
+    const matchRatio = matchedConditionNames.length / Math.max(Object.keys(conditions).length, 1);
     const confidence = Math.min(baseConfidence + matchRatio * 0.1, 1.0);
 
     return {
@@ -176,7 +285,7 @@ export class ATREngine {
   /**
    * Evaluate a single named condition against an event.
    */
-  private evaluateCondition(
+  private evaluateNamedCondition(
     condName: string,
     condDef: unknown,
     event: AgentEvent,
@@ -185,7 +294,7 @@ export class ATREngine {
   ): boolean {
     const cond = condDef as Record<string, unknown>;
 
-    // Pattern matching condition
+    // Pattern matching condition (named format with patterns array)
     if (cond['patterns'] && cond['field']) {
       return this.evaluatePatternCondition(
         cond as unknown as ATRPatternCondition,
@@ -203,7 +312,6 @@ export class ATREngine {
 
     // Sequence condition
     if (cond['steps'] && Array.isArray(cond['steps'])) {
-      // Sequence detection requires stateful tracking (simplified: check if content matches all steps)
       return this.evaluateSequenceCondition(cond, event);
     }
 
@@ -211,7 +319,7 @@ export class ATREngine {
   }
 
   /**
-   * Evaluate a pattern matching condition.
+   * Evaluate a pattern matching condition (named format with patterns array).
    */
   private evaluatePatternCondition(
     cond: ATRPatternCondition,
@@ -220,12 +328,10 @@ export class ATREngine {
     condName: string,
     matchedPatterns: string[]
   ): boolean {
-    // Resolve the field value from the event
     const fieldValue = this.resolveField(cond.field, event);
     if (!fieldValue) return false;
 
     // Get pre-compiled patterns
-    const cacheKey = `${ruleId}:${condName}`;
     const compiled = this.compiledPatterns.get(ruleId)?.get(condName);
 
     if (compiled) {
@@ -300,8 +406,6 @@ export class ATREngine {
       case 'gte': return metricValue >= cond.threshold;
       case 'lte': return metricValue <= cond.threshold;
       case 'deviation_from_baseline':
-        // For deviation, threshold represents standard deviations
-        // The metric value should already be normalized to deviation units
         return Math.abs(metricValue) > cond.threshold;
       default:
         return false;
@@ -318,8 +422,6 @@ export class ATREngine {
     const steps = cond['steps'] as Array<Record<string, unknown>>;
     if (!steps || steps.length === 0) return false;
 
-    // Simplified: check if the event content matches patterns from any step
-    // Full sequence tracking would require a stateful session buffer
     let matchCount = 0;
     for (const step of steps) {
       const patterns = step['patterns'] as string[] | undefined;
@@ -338,7 +440,6 @@ export class ATREngine {
       }
     }
 
-    // Require at least 2 step matches for sequence detection in single-event mode
     return matchCount >= 2;
   }
 
@@ -456,35 +557,52 @@ export class ATREngine {
 
   /**
    * Pre-compile regex patterns for a rule (performance optimization).
+   * Supports both array-format and named-map-format conditions.
    */
   private compilePatterns(rule: ATRRule): void {
     const ruleMap = new Map<string, RegExp[]>();
+    const conditions = rule.detection.conditions;
 
-    for (const [condName, condDef] of Object.entries(rule.detection.conditions)) {
-      const cond = condDef as unknown as Record<string, unknown>;
-      if (cond['patterns'] && Array.isArray(cond['patterns'])) {
-        const matchType = (cond['match_type'] as string) ?? 'regex';
-        const caseSensitive = (cond['case_sensitive'] as boolean) ?? false;
-        const flags = caseSensitive ? '' : 'i';
-
-        const compiled: RegExp[] = [];
-        for (const pattern of cond['patterns'] as string[]) {
+    if (Array.isArray(conditions)) {
+      // Array format: compile each {operator: regex, value: "pattern"} entry
+      for (let i = 0; i < conditions.length; i++) {
+        const cond = conditions[i] as unknown as Record<string, unknown>;
+        if (cond['operator'] === 'regex' && typeof cond['value'] === 'string') {
           try {
-            if (matchType === 'regex') {
-              compiled.push(new RegExp(pattern, flags));
-            } else if (matchType === 'contains') {
-              compiled.push(new RegExp(escapeRegex(pattern), flags));
-            } else if (matchType === 'exact') {
-              compiled.push(new RegExp(`^${escapeRegex(pattern)}$`, flags));
-            } else if (matchType === 'starts_with') {
-              compiled.push(new RegExp(`^${escapeRegex(pattern)}`, flags));
-            }
+            ruleMap.set(String(i), [new RegExp(normalizeRegex(cond['value'] as string), 'i')]);
           } catch {
-            // Invalid regex pattern, skip compilation
+            // Invalid regex, skip
           }
         }
+      }
+    } else {
+      // Named format: compile patterns arrays
+      for (const [condName, condDef] of Object.entries(conditions)) {
+        const cond = condDef as unknown as Record<string, unknown>;
+        if (cond['patterns'] && Array.isArray(cond['patterns'])) {
+          const matchType = (cond['match_type'] as string) ?? 'regex';
+          const caseSensitive = (cond['case_sensitive'] as boolean) ?? false;
+          const flags = caseSensitive ? '' : 'i';
 
-        ruleMap.set(condName, compiled);
+          const compiled: RegExp[] = [];
+          for (const pattern of cond['patterns'] as string[]) {
+            try {
+              if (matchType === 'regex') {
+                compiled.push(new RegExp(normalizeRegex(pattern), flags));
+              } else if (matchType === 'contains') {
+                compiled.push(new RegExp(escapeRegex(pattern), flags));
+              } else if (matchType === 'exact') {
+                compiled.push(new RegExp(`^${escapeRegex(pattern)}$`, flags));
+              } else if (matchType === 'starts_with') {
+                compiled.push(new RegExp(`^${escapeRegex(pattern)}`, flags));
+              }
+            } catch {
+              // Invalid regex pattern, skip
+            }
+          }
+
+          ruleMap.set(condName, compiled);
+        }
       }
     }
 
@@ -514,4 +632,12 @@ export class ATREngine {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Strip inline flags like (?i) from regex patterns.
+ * JavaScript RegExp uses flags as a constructor parameter, not inline.
+ */
+function normalizeRegex(pattern: string): string {
+  return pattern.replace(/^\(\?[imsx]+\)/, '');
 }

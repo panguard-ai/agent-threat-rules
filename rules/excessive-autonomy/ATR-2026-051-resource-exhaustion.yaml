@@ -1,6 +1,6 @@
 title: "Agent Resource Exhaustion Detection"
 id: ATR-2026-051
-status: experimental
+status: draft
 description: >
   Detects when an agent causes resource exhaustion through excessive token
   consumption, massive or unbounded tool calls, large data transfers, or
@@ -9,17 +9,17 @@ description: >
   denial of service) or unintentional (poorly constrained agent logic).
   This rule monitors token usage rates, data volume patterns, concurrent
   resource consumption, and cost accumulation anomalies.
-author: "Panguard AI"
+author: "ATR Community"
 date: "2026/03/08"
 severity: high
 
 references:
   owasp_llm:
+    - "LLM06:2025 - Excessive Agency"
     - "LLM10:2025 - Unbounded Consumption"
-    - "LLM08:2025 - Excessive Agency"
   mitre_atlas:
-    - "AML.T0046 - Resource Exhaustion"
-    - "AML.T0053 - Denial of Service via Agent"
+    - "AML.T0046 - Spamming ML System with Chaff Data"
+    - "AML.T0053 - LLM Plugin Compromise"
 
 tags:
   category: excessive-autonomy
@@ -56,7 +56,7 @@ detection:
       operator: threshold
       value: "data_transfer_bytes > 104857600 within 300s"
       description: "Agent transferring more than 100MB of data within 5 minutes"
-    - field: tool_call_args
+    - field: tool_args
       operator: regex
       value: "(?i)(limit|max_results?|page_size|batch_size)\\s*[:=]\\s*(\\d{5,}|all|unlimited|-1|999999)"
       description: "Unbounded or excessively large query parameters in tool calls"
@@ -72,7 +72,7 @@ detection:
       operator: threshold
       value: "output_tokens_single_response > 32000"
       description: "Single agent response exceeding 32K output tokens"
-  condition: or
+  condition: any
   false_positives:
     - "Authorized large-scale data processing or ETL pipeline agents"
     - "Batch analysis tasks with expected high token usage approved by admin"
@@ -85,7 +85,7 @@ response:
     - alert
   auto_response_threshold: high
   message_template: >
-    [PANGUARD ATR-2026-051] HIGH: Resource exhaustion detected for agent
+    [ATR-2026-051] HIGH: Resource exhaustion detected for agent
     {agent_id}. Metrics exceeded thresholds - Token usage: {token_count},
     Estimated cost: ${estimated_cost}, Data transfer: {data_bytes} bytes,
     API call rate: {api_rate}/min. The agent has been throttled and quotas

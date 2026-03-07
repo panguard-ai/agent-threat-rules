@@ -8,17 +8,17 @@ description: >
   secret patterns. Credential leakage in agent output poses a critical
   security risk as it can lead to unauthorized access, financial loss,
   and full account compromise.
-author: "Panguard AI"
+author: "ATR Community"
 date: "2026/03/08"
 severity: critical
 
 references:
   owasp_llm:
-    - "LLM06:2025 - Sensitive Information Disclosure"
-    - "LLM02:2025 - Sensitive Information in Output"
+    - "LLM02:2025 - Sensitive Information Disclosure"
+    - "LLM07:2025 - System Prompt Leakage"
   mitre_atlas:
-    - "AML.T0048 - Exfiltration via ML Model"
-    - "AML.T0024 - Infer Training Data Membership"
+    - "AML.T0057 - LLM Data Leakage"
+    - "AML.T0055 - Unsecured Credentials"
 
 tags:
   category: context-exfiltration
@@ -74,7 +74,7 @@ detection:
       operator: regex
       value: "secret[\"'\\s]*[:=][\"'\\s]*[a-zA-Z0-9]{16,}"
       description: "Generic secret assignment pattern"
-  condition: or
+  condition: any
   false_positives:
     - "Agent discussing API key formats in an educational context without real keys"
     - "Redacted or placeholder keys such as sk-xxxxxxxxxxxx or AKIA_EXAMPLE"
@@ -87,7 +87,7 @@ response:
     - alert
   auto_response_threshold: critical
   message_template: >
-    [PANGUARD ATR-2026-021] CRITICAL: API key or secret credential detected
+    [ATR-2026-021] CRITICAL: API key or secret credential detected
     in agent output. The output has been blocked and the content redacted.
     Incident logged for review. Affected agent: {agent_id}, session: {session_id}.
     Rotate any potentially exposed credentials immediately.

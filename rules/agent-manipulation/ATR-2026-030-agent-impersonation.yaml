@@ -7,17 +7,17 @@ description: >
   agent, or forging agent credentials in inter-agent communication. Agent
   impersonation can lead to unauthorized actions, trust chain compromise,
   and circumvention of permission boundaries within orchestrated systems.
-author: "Panguard AI"
+author: "ATR Community"
 date: "2026/03/08"
 severity: high
 
 references:
   owasp_llm:
-    - "LLM08:2025 - Excessive Agency"
+    - "LLM06:2025 - Excessive Agency"
     - "LLM05:2025 - Improper Output Handling"
   mitre_atlas:
-    - "AML.T0050 - Agent Spoofing"
-    - "AML.T0049 - Trust Chain Exploitation"
+    - "AML.T0043 - Craft Adversarial Data"
+    - "AML.T0052.000 - Spearphishing via Social Engineering LLM"
 
 tags:
   category: agent-manipulation
@@ -39,27 +39,23 @@ agent_source:
 
 detection:
   conditions:
-    - field: message_metadata
-      operator: mismatch
-      value: "sender_id != authenticated_agent_id"
-      description: "Message sender ID does not match the authenticated agent identity"
-    - field: inter_agent_message
+    - field: content
       operator: regex
       value: "(?i)(i\\s+am|this\\s+is|speaking\\s+as|responding\\s+as)\\s+(the\\s+)?(admin|supervisor|orchestrator|manager|controller)\\s+agent"
       description: "Agent claiming to be a privileged agent role"
-    - field: message_headers
+    - field: content
       operator: regex
       value: "(?i)agent[_-]?id\\s*[:=]\\s*(?!{expected_agent_id})[a-zA-Z0-9_-]+"
       description: "Agent ID header mismatch with expected value"
-    - field: inter_agent_message
+    - field: content
       operator: regex
       value: "(?i)(acting|speaking|operating)\\s+(on\\s+behalf\\s+of|as\\s+a?\\s*proxy\\s+for|in\\s+place\\s+of)\\s+[a-zA-Z0-9_-]+\\s*agent"
       description: "Agent claiming to act on behalf of another agent"
-    - field: inter_agent_message
+    - field: content
       operator: regex
       value: "(?i)(override|bypass)\\s+(my|this)\\s+(identity|role|permissions?)\\s+(to|as|with)"
       description: "Explicit attempt to override identity or role"
-  condition: or
+  condition: any
   false_positives:
     - "Legitimate agent delegation where one agent is authorized to act on behalf of another"
     - "Agent describing its own role as part of normal task execution"
@@ -73,7 +69,7 @@ response:
     - quarantine_session
   auto_response_threshold: high
   message_template: >
-    [PANGUARD ATR-2026-030] HIGH: Agent impersonation detected. Agent
+    [ATR-2026-030] HIGH: Agent impersonation detected. Agent
     {agent_id} attempted to impersonate or spoof the identity of another
     agent in inter-agent communication. The message has been blocked and
     the agent quarantined. Session: {session_id}. Review agent trust

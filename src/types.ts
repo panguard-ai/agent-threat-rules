@@ -1,6 +1,6 @@
 /**
  * ATR (Agent Threat Rules) type definitions
- * @module @panguard-ai/atr/types
+ * @module agent-threat-rules/types
  */
 
 export type ATRStatus = 'draft' | 'experimental' | 'stable' | 'deprecated';
@@ -15,7 +15,8 @@ export type ATRCategory =
   | 'privilege-escalation'
   | 'excessive-autonomy'
   | 'data-poisoning'
-  | 'model-abuse';
+  | 'model-abuse'
+  | 'skill-compromise';
 
 export type ATRConfidence = 'high' | 'medium' | 'low';
 
@@ -26,7 +27,10 @@ export type ATRSourceType =
   | 'agent_behavior'
   | 'multi_agent_comm'
   | 'context_window'
-  | 'memory_access';
+  | 'memory_access'
+  | 'skill_lifecycle'
+  | 'skill_permission'
+  | 'skill_chain';
 
 export type ATRMatchType = 'contains' | 'regex' | 'exact' | 'starts_with';
 
@@ -92,15 +96,29 @@ export interface ATRSequenceCondition {
   steps: ATRSequenceStep[];
 }
 
+/** Array-format condition: {field, operator, value} used by most rules */
+export interface ATRArrayCondition {
+  field: string;
+  operator: string;
+  value: string;
+  description?: string;
+}
+
+/** Named-map conditions or array conditions */
+export type ATRConditions =
+  | ATRArrayCondition[]
+  | Record<string, ATRPatternCondition | ATRBehavioralCondition | ATRSequenceCondition>;
+
 export interface ATRDetection {
-  conditions: Record<string, ATRPatternCondition | ATRBehavioralCondition | ATRSequenceCondition>;
+  conditions: ATRConditions;
+  /** "any" = OR across all conditions, "all" = AND. For named format: boolean expression string. */
   condition: string;
   false_positives?: string[];
 }
 
 export interface ATRResponse {
   actions: ATRAction[];
-  auto_response_threshold?: number;
+  auto_response_threshold?: string;
   message_template?: string;
 }
 

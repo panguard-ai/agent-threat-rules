@@ -1,10 +1,21 @@
 {
-  "name": "@panguard-ai/atr",
+  "name": "agent-threat-rules",
   "version": "0.1.0",
   "type": "module",
   "description": "Open detection rules for AI agent threats. Like Sigma, but for prompt injection, tool poisoning, and agent manipulation.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./rules": "./rules",
+    "./spec": "./spec/atr-schema.yaml"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
