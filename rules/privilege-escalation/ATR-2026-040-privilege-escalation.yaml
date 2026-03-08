@@ -151,3 +151,7 @@ test_cases:
       tool_args: '{"query": "password reset instructions"}'
       expected: not_triggered
       description: "Agent searching help docs within normal scope"
+    - tool_name: "query_database"
+      tool_args: '{"sql": "SELECT name FROM products WHERE category = ''electronics'' LIMIT 10"}'
+      expected: not_triggered
+      description: "Legitimate bounded database query without destructive operations"

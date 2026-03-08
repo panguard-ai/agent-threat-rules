@@ -27,9 +27,7 @@ references:
   mitre_attack:
     - "T1090 - Proxy"
     - "T1071 - Application Layer Protocol"
-  cve:
-    - "CVE-2019-5418"
-    - "CVE-2021-21311"
+  cve: []
 
 tags:
   category: tool-poisoning

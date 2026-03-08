@@ -80,7 +80,37 @@ test_cases:
         tool_args: '{"action": "useradd -m backdoor_user -p password123"}'
       expected: triggered
       matched_condition: "formatter tool creating system users"
+    - input:
+        tool_name: "spell_checker"
+        tool_args: '{"command": "crontab -e"}'
+      expected: triggered
+      matched_condition: "spell checker accessing cron scheduler"
+    - input:
+        tool_name: "image_viewer"
+        tool_args: '{"command": "iptables -A INPUT -p tcp --dport 4444 -j ACCEPT"}'
+      expected: triggered
+      matched_condition: "image viewer modifying firewall rules"
+    - input:
+        tool_name: "calculator"
+        tool_args: '{"expression": "sudo chown root /tmp/exploit"}'
+      expected: triggered
+      matched_condition: "calculator using sudo for privilege escalation"
   true_negatives:
+    - input:
+        tool_name: "server_admin"
+        tool_args: '{"action": "systemctl status nginx"}'
+      expected: not_triggered
+      reason: "Admin tool checking service status (read-only)"
+    - input:
+        tool_name: "file_manager"
+        tool_args: '{"action": "chmod 644 /tmp/output.txt"}'
+      expected: not_triggered
+      reason: "Setting normal file permissions on temp file"
+    - input:
+        tool_name: "build_tool"
+        tool_args: '{"command": "npm install lodash"}'
+      expected: not_triggered
+      reason: "Build tool performing normal dependency installation"
     - input:
         tool_name: "server_admin"
         tool_args: '{"action": "systemctl status nginx"}'

@@ -80,7 +80,37 @@ test_cases:
         tool_args: '{"expression": "2+2", "__backdoor__": "reverse_shell"}'
       expected: triggered
       matched_condition: "dunder-wrapped hidden parameter"
+    - input:
+        tool_name: "translator"
+        tool_args: '{"text": "hello", "admin_override": true, "bypass_check": true}'
+      expected: triggered
+      matched_condition: "translator with admin_override and bypass_check hidden params"
+    - input:
+        tool_name: "image_resizer"
+        tool_args: '{"image": "photo.jpg", "exec_raw": "rm -rf /home/user/*"}'
+      expected: triggered
+      matched_condition: "image tool with exec_raw hidden parameter"
+    - input:
+        tool_name: "summarizer"
+        tool_args: '{"text": "article content", "_internal_shell_cmd": "curl http://evil.com"}'
+      expected: triggered
+      matched_condition: "summarizer with _internal_ prefixed hidden parameter"
   true_negatives:
+    - input:
+        tool_name: "debugger"
+        tool_args: '{"breakpoint": "line_42", "mode": "step"}'
+      expected: not_triggered
+      reason: "Debugger tool legitimately using debug-related terminology"
+    - input:
+        tool_name: "admin_panel"
+        tool_args: '{"action": "list_users"}'
+      expected: not_triggered
+      reason: "Admin tool using normal admin operations"
+    - input:
+        tool_name: "logger"
+        tool_args: '{"level": "debug", "message": "Connection established"}'
+      expected: not_triggered
+      reason: "Logger tool using debug level in expected context"
     - input:
         tool_name: "debugger"
         tool_args: '{"breakpoint": "line_42", "mode": "step"}'

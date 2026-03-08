@@ -119,6 +119,9 @@ test_cases:
     - input: "Will keep trying until it works. Continuously retrying the API call."
       expected: triggered
       description: "Agent declaring intent to retry indefinitely"
+    - input: "Iteration #35. Repeating the same step again with identical parameters. Still getting the same error as before."
+      expected: triggered
+      description: "High iteration count with repeated identical actions and stalled progress"
   true_negatives:
     - input: "Processing batch 3 of 5. All items completed successfully so far."
       expected: not_triggered
