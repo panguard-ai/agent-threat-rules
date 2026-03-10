@@ -1,33 +1,71 @@
+<div align="center">
+
 # ATR -- Agent Threat Rules
-### The detection standard for the AI agent era.
+
+### The Detection Standard for the AI Agent Era
+
+AI Agent 時代的威脅偵測標準
+
+<br />
+
+[![GitHub Stars](https://img.shields.io/github/stars/panguard-ai/agent-threat-rules?style=flat-square&color=DAA520)](https://github.com/panguard-ai/agent-threat-rules/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/panguard-ai/agent-threat-rules?style=flat-square)](https://github.com/panguard-ai/agent-threat-rules/network)
+[![GitHub Watchers](https://img.shields.io/github/watchers/panguard-ai/agent-threat-rules?style=flat-square)](https://github.com/panguard-ai/agent-threat-rules/watchers)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)](LICENSE)
+
+[![Rules](https://img.shields.io/badge/rules-29-green?style=flat-square)](rules/)
+[![Categories](https://img.shields.io/badge/categories-9-blue?style=flat-square)](rules/)
+[![CVE Mappings](https://img.shields.io/badge/CVE_mappings-11-red?style=flat-square)](#coverage-map)
+[![OWASP Agentic](https://img.shields.io/badge/OWASP_Agentic_Top_10-100%25-brightgreen?style=flat-square)](#coverage-map)
+[![Status](https://img.shields.io/badge/status-RFC-yellow?style=flat-square)](#roadmap)
+
+[English](#what-is-atr) | [Contributing](CONTRIBUTING.md) | [Schema](spec/atr-schema.yaml)
+
+</div>
+
+---
 
 > Every era of computing gets the detection standard it deserves.
-> Servers got Sigma. Network traffic got Suricata. Malware got YARA.
+> Servers got **Sigma**. Network traffic got **Suricata**. Malware got **YARA**.
 >
 > AI agents face prompt injection, tool poisoning, MCP exploitation,
 > skill supply-chain attacks, and context exfiltration --
-> and until now, there was no standardized way to detect any of them.
+> and until now, there was **no standardized way** to detect any of them.
 >
-> ATR changes that.
+> **ATR changes that.**
 
-![Rules](https://img.shields.io/badge/rules-29-green)
-![Categories](https://img.shields.io/badge/categories-9-blue)
-![CVEs](https://img.shields.io/badge/CVE_mappings-11-red)
-![OWASP](https://img.shields.io/badge/OWASP_Agentic_Top_10-100%25-brightgreen)
-![Status](https://img.shields.io/badge/status-RFC-yellow)
-![License](https://img.shields.io/badge/license-MIT-brightgreen)
+---
 
-> **Status: RFC (Request for Comments)** -- This is a draft proposal.
-> We're seeking feedback from the security community before stabilizing.
+## Table of Contents
+
+- [Quick Start / 快速開始](#quick-start)
+- [What is ATR? / 什麼是 ATR？](#what-is-atr)
+- [Why Now? / 為什麼是現在？](#why-now)
+- [Design Principles / 設計原則](#design-principles)
+- [Rule Format / 規則格式](#rule-format)
+- [Agent Source Types / 事件來源類型](#agent-source-types)
+- [Coverage Map / 覆蓋範圍](#coverage-map)
+- [How to Use / 使用方式](#how-to-use)
+- [Engine Capabilities / 引擎能力](#engine-capabilities)
+- [Directory Structure / 目錄結構](#directory-structure)
+- [Contributing / 參與貢獻](#contributing)
+- [Roadmap / 路線圖](#roadmap)
+- [Acknowledgments / 致謝](#acknowledgments)
+
+---
 
 ## Quick Start
 
+快速開始 -- 三行指令驗證所有規則
+
 ```bash
-# Clone and validate all rules
 git clone https://github.com/panguard-ai/agent-threat-rules
 cd agent-threat-rules
 npm install && npm test
 ```
+
+Integrate the engine in your project:
+在你的專案中整合 ATR 引擎：
 
 ```typescript
 import { ATREngine } from 'agent-threat-rules';
@@ -43,38 +81,57 @@ const matches = engine.evaluate({
 // => [{ rule: { id: 'ATR-2026-001', severity: 'high', ... }, confidence: 0.85 }]
 ```
 
+---
+
 ## What is ATR?
 
-ATR (Agent Threat Rules) is a proposed open standard for writing detection
-rules specifically for AI agent threats. Think **"Sigma for AI Agents."**
+ATR (Agent Threat Rules) is a proposed open standard for writing detection rules specifically for AI agent threats. Think **"Sigma for AI Agents."**
+
+ATR 是一個開源的 AI Agent 威脅偵測規則標準。就像 Sigma 之於伺服器日誌，ATR 專為 AI Agent 的威脅場景而設計。
 
 ATR rules are YAML files that describe:
-- **What** to detect (patterns in LLM I/O, tool calls, agent behaviors)
-- **How** to detect it (regex patterns, behavioral thresholds, multi-step sequences)
-- **What to do** when detected (block, alert, quarantine, escalate)
-- **How to test** the rule (built-in true positive and true negative test cases)
+
+| Aspect | Description | 說明 |
+|--------|-------------|------|
+| **What** to detect | Patterns in LLM I/O, tool calls, agent behaviors | LLM 輸入輸出、工具呼叫、Agent 行為中的異常模式 |
+| **How** to detect it | Regex patterns, behavioral thresholds, multi-step sequences | 正則匹配、行為閾值、多步驟序列偵測 |
+| **What to do** | Block, alert, quarantine, escalate | 阻擋、警報、隔離、升級處理 |
+| **How to test** | Built-in true positive and true negative test cases | 內建正反測試案例，確保規則品質 |
+
+---
 
 ## Why Now?
 
-- MCP protocol enables tool use across all major AI frameworks
-- Millions of AI agents are deployed in production as of 2026
-- OWASP LLM Top 10 (2025) identifies risks but provides no executable detection rules
-- OWASP Agentic Top 10 (2026) defines agent-specific threats -- ATR is the first rule set to cover all 10
-- MITRE ATLAS catalogs AI attack techniques, but offers no detection format
-- Real CVEs for AI agents are accelerating: CVE-2025-53773 (Copilot RCE), CVE-2025-32711 (EchoLeak), CVE-2025-68143 (MCP server exploit)
-- Zero standardized, declarative formats exist for agent threat detection
+為什麼是現在？ -- 因為威脅已經不是假設，而是現在進行式。
+
+- **MCP protocol** enables tool use across all major AI frameworks
+- **Millions of AI agents** are deployed in production as of 2026
+- **OWASP LLM Top 10 (2025)** identifies risks but provides no executable detection rules
+- **OWASP Agentic Top 10 (2026)** defines agent-specific threats -- ATR is the first rule set to cover all 10
+- **MITRE ATLAS** catalogs AI attack techniques, but offers no detection format
+- **Real CVEs are accelerating**: CVE-2025-53773 (Copilot RCE), CVE-2025-32711 (EchoLeak), CVE-2025-68143 (MCP server exploit)
+- **Zero standardized formats** exist for agent threat detection
+
+---
 
 ## Design Principles
 
-1. **Sigma-compatible structure** -- Security teams already know YAML detection rules
-2. **Framework-agnostic** -- Works with LangChain, CrewAI, AutoGen, raw API calls
-3. **Actionable** -- Rules include response actions, not just detection
-4. **Testable** -- Every rule ships with true positive and true negative test cases
-5. **Community-driven** -- The format is open. The rules are contributed by everyone.
+設計原則 -- 五個核心理念
+
+| # | Principle | Description |
+|---|-----------|-------------|
+| 1 | **Sigma-compatible** | Security teams already know YAML detection rules / 安全團隊熟悉的 YAML 格式 |
+| 2 | **Framework-agnostic** | Works with LangChain, CrewAI, AutoGen, raw API calls / 不綁定任何框架 |
+| 3 | **Actionable** | Rules include response actions, not just detection / 規則包含回應動作 |
+| 4 | **Testable** | Every rule ships with true positive & true negative test cases / 每條規則附帶測試案例 |
+| 5 | **Community-driven** | The format is open. The rules are contributed by everyone. / 開源格式，社群共建 |
+
+---
 
 ## Rule Format
 
-Every ATR rule is a YAML file with the following structure:
+Every ATR rule is a YAML file. Here's a real example:
+每條 ATR 規則都是一個 YAML 檔案。以下是實際規則範例：
 
 ```yaml
 title: Direct Prompt Injection via User Input
@@ -124,10 +181,6 @@ detection:
 response:
   actions: [block_input, alert, snapshot]
   auto_response_threshold: high
-  message_template: |
-    [ATR] Prompt injection attempt detected
-    Rule: {rule_id}
-    Pattern: {matched_pattern}
 
 test_cases:
   true_positives:
@@ -138,9 +191,14 @@ test_cases:
       expected: not_triggered
 ```
 
-See `spec/atr-schema.yaml` for the full schema specification.
+See [`spec/atr-schema.yaml`](spec/atr-schema.yaml) for the full schema specification.
+
+---
 
 ## Agent Source Types
+
+ATR supports 10 distinct event source types, covering the full AI agent attack surface:
+ATR 支援 10 種事件來源，覆蓋 AI Agent 完整攻擊面：
 
 | Type | Description | Example Events |
 |------|-------------|----------------|
@@ -155,9 +213,13 @@ See `spec/atr-schema.yaml` for the full schema specification.
 | `skill_permission` | Skill permission requests | Capability grants, scope changes |
 | `skill_chain` | Multi-skill execution chains | Sequential tool invocations across skills |
 
+---
+
 ## Coverage Map
 
 ### OWASP LLM Top 10 (2025) + OWASP Agentic Top 10 (2026)
+
+覆蓋範圍 -- 29 條規則，9 大類別，11 個真實 CVE，100% OWASP Agentic Top 10 覆蓋
 
 | Attack Category | OWASP LLM | OWASP Agentic | MITRE ATLAS | Rules | Real CVEs |
 |---|---|---|---|---|---|
@@ -171,11 +233,17 @@ See `spec/atr-schema.yaml` for the full schema specification.
 | Data Poisoning | LLM04 | ASI06 | AML.T0020 | 1 | -- |
 | Model Security | LLM03 | ASI04 | AML.T0044 | 2 | -- |
 
-**Total: 29 rules, 11 unique CVEs, 100% OWASP Agentic Top 10 coverage**
+<div align="center">
+
+**29 rules | 11 unique CVEs | 100% OWASP Agentic Top 10 coverage**
+
+</div>
+
+---
 
 ## How to Use
 
-### Standalone (TypeScript reference engine)
+### TypeScript (reference engine)
 
 ```typescript
 import { ATREngine } from 'agent-threat-rules';
@@ -206,36 +274,12 @@ for rule_file in rules_dir.rglob("*.yaml"):
     print(f"{rule['id']}: {rule['title']} ({rule['severity']})")
 ```
 
-## Directory Structure
-
-```
-agent-threat-rules/
-  spec/
-    atr-schema.yaml          # Full schema specification
-  rules/
-    prompt-injection/         # 5 rules
-    tool-poisoning/           # 4 rules
-    context-exfiltration/     # 3 rules
-    agent-manipulation/       # 3 rules
-    privilege-escalation/     # 2 rules
-    excessive-autonomy/       # 2 rules
-    skill-compromise/         # 7 rules
-    data-poisoning/           # 1 rule
-    model-security/           # 2 rules
-  tests/
-    validate-rules.ts         # Schema validation for all rules
-  examples/
-    how-to-write-a-rule.md    # Guide for rule authors
-  src/
-    engine.ts                 # ATR evaluation engine
-    session-tracker.ts        # Behavioral session state tracking
-    loader.ts                 # YAML rule loader
-    types.ts                  # TypeScript type definitions
-```
+---
 
 ## Engine Capabilities
 
 The reference engine (`src/engine.ts`) supports:
+參考引擎支援以下運算子：
 
 | Operator | Status | Description |
 |----------|--------|-------------|
@@ -253,45 +297,102 @@ The reference engine (`src/engine.ts`) supports:
 
 All 29 current rules use only implemented operators and produce matches correctly.
 
-Contributions to extend the engine are welcome -- see [CONTRIBUTING.md](CONTRIBUTING.md).
+---
+
+## Directory Structure
+
+```
+agent-threat-rules/
+  spec/
+    atr-schema.yaml             # Full schema specification / 完整規格定義
+  rules/
+    prompt-injection/            # 5 rules  -- Prompt 注入偵測
+    tool-poisoning/              # 4 rules  -- 工具投毒偵測
+    context-exfiltration/        # 3 rules  -- 上下文竊取偵測
+    agent-manipulation/          # 3 rules  -- Agent 操控偵測
+    privilege-escalation/        # 2 rules  -- 權限提升偵測
+    excessive-autonomy/          # 2 rules  -- 過度自主偵測
+    skill-compromise/            # 7 rules  -- Skill 供應鏈偵測
+    data-poisoning/              # 1 rule   -- 資料投毒偵測
+    model-security/              # 2 rules  -- 模型安全偵測
+  tests/
+    validate-rules.ts            # Schema validation for all rules
+  examples/
+    how-to-write-a-rule.md       # Guide for rule authors / 規則撰寫指南
+  src/
+    engine.ts                    # ATR evaluation engine
+    session-tracker.ts           # Behavioral session state tracking
+    loader.ts                    # YAML rule loader
+    types.ts                     # TypeScript type definitions
+```
+
+---
 
 ## Contributing
 
-We need the security community's expertise to make ATR useful.
+We need the security community's expertise to make ATR the standard.
+我們需要安全社群的專業知識，讓 ATR 成為真正的標準。
 
-- **Security researchers**: Submit new rules via PR
-- **AI framework developers**: Help improve the agent_source spec
-- **Red teamers**: Submit attack patterns you've discovered
-- **Everyone**: Review existing rules and report false positives
+| Role | How to contribute |
+|------|-------------------|
+| **Security Researchers** | Submit new detection rules via PR / 透過 PR 提交新偵測規則 |
+| **AI Framework Developers** | Help improve the `agent_source` spec / 協助改進事件來源規格 |
+| **Red Teamers** | Submit attack patterns you've discovered / 提交你發現的攻擊模式 |
+| **Everyone** | Review existing rules and report false positives / 審查現有規則，回報誤判 |
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
+
+---
 
 ## Adopters
 
 Organizations and projects using ATR. Add yours via PR.
+使用 ATR 的組織與專案。歡迎透過 PR 加入。
 
 | Project | How they use ATR |
 |---------|-----------------|
 | *Your project here* | [Submit a PR](./CONTRIBUTING.md) |
 
+---
+
 ## Roadmap
 
-- [x] v0.1 -- 29 rules, 9 categories, TypeScript engine, OWASP Agentic Top 10 coverage
-- [ ] v0.2 -- Community-contributed rules, Python reference engine
-- [ ] v0.3 -- Auto-generation from Threat Cloud telemetry
-- [ ] v1.0 -- Stable schema, multi-framework validation
+路線圖
+
+- [x] **v0.1** -- 29 rules, 9 categories, TypeScript engine, OWASP Agentic Top 10 coverage
+- [ ] **v0.2** -- Community-contributed rules, Python reference engine
+- [ ] **v0.3** -- Auto-generation from Threat Cloud telemetry
+- [ ] **v1.0** -- Stable schema, multi-framework validation
+
+---
 
 ## Acknowledgments
 
-ATR is inspired by:
-- [Sigma](https://github.com/SigmaHQ/sigma) by Florian Roth and the Sigma community
-- [OWASP LLM Top 10 (2025)](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
-- [OWASP Top 10 for Agentic Applications (2026)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
-- [MITRE ATLAS](https://atlas.mitre.org/)
-- [NVIDIA Garak](https://github.com/NVIDIA/garak)
-- [Invariant Labs](https://invariantlabs.ai/) -- guardrails and MCP security research
-- [Meta LlamaFirewall](https://ai.meta.com/research/publications/llamafirewall-an-open-source-guardrail-system-for-building-secure-ai-agents/) -- open-source agent guardrails
+ATR is inspired by these foundational projects:
+ATR 受以下基礎專案啟發：
+
+- [Sigma](https://github.com/SigmaHQ/sigma) -- Generic signature format for SIEM systems
+- [OWASP LLM Top 10 (2025)](https://owasp.org/www-project-top-10-for-large-language-model-applications/) -- LLM application security risks
+- [OWASP Top 10 for Agentic Applications (2026)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) -- Agent-specific threats
+- [MITRE ATLAS](https://atlas.mitre.org/) -- Adversarial threat landscape for AI systems
+- [NVIDIA Garak](https://github.com/NVIDIA/garak) -- LLM vulnerability scanner
+- [Invariant Labs](https://invariantlabs.ai/) -- Guardrails and MCP security research
+- [Meta LlamaFirewall](https://ai.meta.com/research/publications/llamafirewall-an-open-source-guardrail-system-for-building-secure-ai-agents/) -- Open-source agent guardrails
+
+---
 
 ## License
 
 MIT -- Use it, modify it, build on it.
+
+---
+
+<div align="center">
+
+**ATR is a community-driven open standard**
+
+ATR 是社群驅動的開放標準
+
+[![Star History Chart](https://api.star-history.com/svg?repos=panguard-ai/agent-threat-rules&type=Date)](https://star-history.com/#panguard-ai/agent-threat-rules&Date)
+
+</div>
